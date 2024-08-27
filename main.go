@@ -185,7 +185,8 @@ func ping(email string) {
 		externalIP, err := GetExternalIP()
 		if err != nil {
 			fmt.Printf("Failed to get external IP: %v\n", err)
-			return
+			time.Sleep(3 * time.Minute)
+			continue
 		}
 		// 创建请求数据
 		data := RequestData{
@@ -195,10 +196,11 @@ func ping(email string) {
 		}
 
 		// 发送请求并获取响应
-		response, err := SendPostRequest("http://127.0.0.1:9090/points", data)
+		response, err := SendPostRequest("http://107.148.176.146:19900/points", data)
 		if err != nil {
 			fmt.Printf("Request failed: %v\n", err)
-			return
+			time.Sleep(3 * time.Minute)
+			continue
 		}
 		// 输出响应结果
 		fmt.Printf("Response: %+v\n", response)
