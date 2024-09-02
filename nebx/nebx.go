@@ -33,7 +33,9 @@ const (
 	BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 	//  BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAGeVvgEAAAAA3RzAhyvIDr0%2BZWuNdzEwi3pET1U%3DAdNxDHxkTBjv1jVXPy3djIrX7lTcZTheBW4oFrQVLTLg6vjuGV"
 	//BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
-	inviteCode = "91766401"
+	//inviteCode = "91766401"
+	inviteCode        = "36756072"
+	FILENAME   string = "D:\\home\\nebx\\ol_token.txt"
 )
 
 var tokenMap sync.Map
@@ -138,18 +140,23 @@ func runBath(runBath *RunBath) {
 			twitterClient.Headers.Set("Origin", "https://x.com")
 			twitterClient.Headers.Set("Authorization", "Bearer "+BEARER_TOKEN)
 			log.Println(Green + "手动关注链接：https://x.com/" + Reset + accountParts[len(accountParts)-9])
-			success, count := twitterClient.follow(runBath.Client, userId, "")
+			success, count := twitterClient.follow(runBath.Client, userId, "", runBath.TokenFile)
 			if count > 8 {
 				successCount = int(count)
 			} else if success {
 				log.Println(Green + "关注成功" + Reset)
 				successCount++
 			} else {
-				log.Println("关注失败")
+				log.Printf("关注失败: %s\n", line)
 			}
 
 			if successCount >= 8 {
 				successCount = 0
+				// 异步执行 sign 函数
+				//go func(client *http.Client, signParam string) {
+				//	sign(client, signParam)
+				//}(runBath.Client, accountParts[len(accountParts)-5])
+
 				sign(runBath.Client, accountParts[len(accountParts)-5])
 				break
 			}
@@ -587,7 +594,7 @@ func toJSON(v interface{}) string {
 	return string(b)
 }
 
-func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, float64) {
+func (t *TwitterClient) follow(client *http.Client, userID, ct0 string, olTokenfile *os.File) (bool, float64) {
 
 	log.Printf("%s  处理账户ID", userID)
 	baseURL := "https://twitter.com/i/api/1.1/friendships/create.json"
@@ -661,18 +668,21 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, f
 			for _, cookie := range res.Cookies() {
 				if cookie.Name == "ct0" {
 					t.Headers.Set("x-csrf-token", cookie.Value)
-					return t.follow(client, userID, cookie.Value)
+					return t.follow(client, userID, cookie.Value, olTokenfile)
 				}
 			}
 			return false, 0
 		case 32, 64:
 			log.Printf("%s  账号被封: %d", t.AuthToken, errorCode)
+			removeLineFromFile(t.AuthToken)
 			return false, 0
 		case 326:
 			log.Printf("%s  账号被锁定: %d", t.AuthToken, errorCode)
+			removeLineFromFile(t.AuthToken)
 			return false, 0
 		case 344:
 			log.Printf("%s  账号关注限制: %d", t.AuthToken, errorCode)
+			removeLineFromFile(t.AuthToken)
 			return false, 0
 		default:
 			log.Printf("%s  账号关注失败: %d", t.AuthToken, errorCode)
@@ -683,6 +693,31 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, f
 	return false, 0
 }
 
+// 删除文件中特定行的函数
+func removeLineFromFile(lineToRemove string) error {
+	// 读取文件的所有行
+	input, err := ioutil.ReadFile(FILENAME)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(input), "\n")
+	var output []string
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) != strings.TrimSpace(lineToRemove) {
+			output = append(output, line)
+		}
+	}
+
+	// 将过滤后的内容写回文件
+	err = ioutil.WriteFile(FILENAME, []byte(strings.Join(output, "\n")), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func (c *Client) check() bool {
 	defer func() {
 		if r := recover(); r != nil {
@@ -760,12 +795,10 @@ func (c *Client) check() bool {
 }
 
 func main() {
-
 	config, err := loadConfig("config.json")
 	if err != nil {
 		log.Fatalf("加载配置文件失败: %v", err)
 	}
-
 	proxy, err := url.Parse(config.Proxy)
 	if err != nil {
 		log.Fatalf("解析代理 URL 失败: %v", err)
