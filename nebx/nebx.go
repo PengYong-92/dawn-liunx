@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,8 +35,6 @@ const (
 	//  BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAGeVvgEAAAAA3RzAhyvIDr0%2BZWuNdzEwi3pET1U%3DAdNxDHxkTBjv1jVXPy3djIrX7lTcZTheBW4oFrQVLTLg6vjuGV"
 	//BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 	//inviteCode = "91766401"
-	inviteCode        = "36756072"
-	FILENAME   string = "D:\\home\\nebx\\ol_token.txt"
 )
 
 var tokenMap sync.Map
@@ -59,6 +58,7 @@ type Config struct {
 	Proxy        string `json:"proxy"`
 	TokenFile    string `json:"tokenfile"`
 	NewTokenFile string `json:"newtokenfile"`
+	InviteCode   string `json:"inviteCode"`
 }
 
 func loadConfig(configFile string) (*Config, error) {
@@ -78,6 +78,7 @@ type RunBath struct {
 	NewTokenFile *os.File
 	TokenFile    *os.File
 	Client       *http.Client
+	InviteCode   string
 }
 
 type TwitterClient struct {
@@ -157,7 +158,7 @@ func runBath(runBath *RunBath) {
 				//	sign(client, signParam)
 				//}(runBath.Client, accountParts[len(accountParts)-5])
 
-				sign(runBath.Client, accountParts[len(accountParts)-5])
+				sign(runBath.Client, accountParts[len(accountParts)-5], runBath.InviteCode)
 				break
 			}
 
@@ -250,7 +251,7 @@ func decode(info string) (string, error) {
 
 	return result, nil
 }
-func sign(client *http.Client, t_token string) {
+func sign(client *http.Client, t_token, invcode string) {
 	//defer func() {
 	//	if r := recover(); r != nil {
 	//		log.Println("sign function failed: %v", r)
@@ -334,7 +335,7 @@ func sign(client *http.Client, t_token string) {
 		}
 		log.Printf("获取授权码: %s", twitterResponse)
 
-		success, err, token := nebxLogin(state, twitterResponse, clientId, captcha, uuid, client)
+		success, err, token := nebxLogin(invcode, state, twitterResponse, clientId, captcha, uuid, client)
 
 		if success {
 			setValue("token", token)
@@ -518,7 +519,7 @@ func extractRedirectURI(body []byte) string {
 
 	return ""
 }
-func nebxLogin(state, twitter, clientId, capsolver string, uid int64, client *http.Client) (bool, error, string) {
+func nebxLogin(inviteCode, state, twitter, clientId, capsolver string, uid int64, client *http.Client) (bool, error, string) {
 	signIn := map[string]interface{}{
 		"state":      state,
 		"code":       twitter,
@@ -561,7 +562,7 @@ func nebxLogin(state, twitter, clientId, capsolver string, uid int64, client *ht
 
 	if bodyStr == "too many request" {
 		time.Sleep(5 * time.Second)
-		return nebxLogin(state, twitter, clientId, capsolver, uid, client)
+		return nebxLogin(inviteCode, state, twitter, clientId, capsolver, uid, client)
 	}
 	if len(bodyStr) > 200 {
 		de, _ := decode(bodyStr)
@@ -674,15 +675,15 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string, olTokenf
 			return false, 0
 		case 32, 64:
 			log.Printf("%s  账号被封: %d", t.AuthToken, errorCode)
-			removeLineFromFile(t.AuthToken)
+			removeLineFromFile(olTokenfile.Name(), t.AuthToken)
 			return false, 0
 		case 326:
 			log.Printf("%s  账号被锁定: %d", t.AuthToken, errorCode)
-			removeLineFromFile(t.AuthToken)
+			removeLineFromFile(olTokenfile.Name(), t.AuthToken)
 			return false, 0
 		case 344:
 			log.Printf("%s  账号关注限制: %d", t.AuthToken, errorCode)
-			removeLineFromFile(t.AuthToken)
+			removeLineFromFile(olTokenfile.Name(), t.AuthToken)
 			return false, 0
 		default:
 			log.Printf("%s  账号关注失败: %d", t.AuthToken, errorCode)
@@ -694,9 +695,9 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string, olTokenf
 }
 
 // 删除文件中特定行的函数
-func removeLineFromFile(lineToRemove string) error {
+func removeLineFromFile(olTokenfile, lineToRemove string) error {
 	// 读取文件的所有行
-	input, err := ioutil.ReadFile(FILENAME)
+	input, err := ioutil.ReadFile(olTokenfile)
 	if err != nil {
 		return err
 	}
@@ -711,7 +712,7 @@ func removeLineFromFile(lineToRemove string) error {
 	}
 
 	// 将过滤后的内容写回文件
-	err = ioutil.WriteFile(FILENAME, []byte(strings.Join(output, "\n")), 0644)
+	err = ioutil.WriteFile(olTokenfile, []byte(strings.Join(output, "\n")), 0644)
 	if err != nil {
 		return err
 	}
@@ -795,7 +796,10 @@ func (c *Client) check() bool {
 }
 
 func main() {
-	config, err := loadConfig("config.json")
+	// 使用 flag 包处理命令行参数
+	configPath := flag.String("config", "config.json", "配置文件的路径")
+	flag.Parse()
+	config, err := loadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("加载配置文件失败: %v", err)
 	}
@@ -830,6 +834,7 @@ func main() {
 		NewTokenFile: newTokenFile,
 		TokenFile:    tokenFile,
 		Client:       client,
+		InviteCode:   config.InviteCode,
 	}
 	runBath(runbath)
 }
