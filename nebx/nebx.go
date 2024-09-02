@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -32,7 +33,7 @@ const (
 	BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 	//  BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAGeVvgEAAAAA3RzAhyvIDr0%2BZWuNdzEwi3pET1U%3DAdNxDHxkTBjv1jVXPy3djIrX7lTcZTheBW4oFrQVLTLg6vjuGV"
 	//BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
-	inviteCode = "70401848"
+	inviteCode = "91766401"
 )
 
 var tokenMap sync.Map
@@ -87,19 +88,46 @@ type Client struct {
 }
 
 func runBath(runBath *RunBath) {
+	// 首先将新 token 文件中的内容全部读取到切片中
+	newTokens := []string{}
 	newScanner := bufio.NewScanner(runBath.NewTokenFile)
 	for newScanner.Scan() {
-		newKey := newScanner.Text()
+		newTokens = append(newTokens, newScanner.Text())
+	}
+
+	if err := newScanner.Err(); err != nil {
+		log.Printf("扫描新 token 文件失败: %v", err)
+		return
+	}
+
+	rand.Seed(time.Now().UnixNano()) // 设置随机种子
+
+	for _, newKey := range newTokens {
 		accountParts := strings.Split(newKey, "----")
 		userId := strings.Split(accountParts[len(accountParts)-2], "-")[0]
 
-		// 重新打开文件进行读取
+		// 将 TokenFile 重新读取到一个切片中
 		runBath.TokenFile.Seek(0, 0) // 将文件指针重置到开头
+		tokens := []string{}
 		scanner := bufio.NewScanner(runBath.TokenFile)
-		successCount := 0
-
 		for scanner.Scan() {
-			line := scanner.Text()
+			tokens = append(tokens, scanner.Text())
+		}
+
+		if err := scanner.Err(); err != nil {
+			log.Printf("读取文件行失败: %v", err)
+			continue
+		}
+
+		successCount := 0
+		for len(tokens) > 0 {
+			// 从 tokens 切片中随机选择一个 token
+			index := rand.Intn(len(tokens))
+			line := tokens[index]
+
+			// 移除已选择的 token
+			tokens = append(tokens[:index], tokens[index+1:]...)
+
 			twitterClient := &TwitterClient{
 				AuthToken: line,
 				Headers:   http.Header{},
@@ -109,11 +137,9 @@ func runBath(runBath *RunBath) {
 			twitterClient.Headers.Set("x-twitter-active-user", "yes")
 			twitterClient.Headers.Set("Origin", "https://x.com")
 			twitterClient.Headers.Set("Authorization", "Bearer "+BEARER_TOKEN)
-
-			success, err, count := twitterClient.follow(runBath.Client, userId, "")
-			if err != nil {
-				log.Printf("关注失败: %v", err)
-			} else if count > 8 {
+			log.Println(Green + "手动关注链接：https://x.com/" + Reset + accountParts[len(accountParts)-9])
+			success, count := twitterClient.follow(runBath.Client, userId, "")
+			if count > 8 {
 				successCount = int(count)
 			} else if success {
 				log.Println(Green + "关注成功" + Reset)
@@ -128,16 +154,8 @@ func runBath(runBath *RunBath) {
 				break
 			}
 
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
-
-		if err := scanner.Err(); err != nil {
-			log.Printf("读取文件行失败: %v", err)
-		}
-	}
-
-	if err := newScanner.Err(); err != nil {
-		log.Printf("扫描新 token 文件失败: %v", err)
 	}
 }
 
@@ -242,7 +260,7 @@ func sign(client *http.Client, t_token string) {
 		"websiteKey": "6LcqEzMqAAAAAH0rnqHOElnkzZUv_yXsi_AOis7t",
 	})
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	captcha := res.Solution["gRecaptchaResponse"].(string)
 	fmt.Println("SUCCESS captcha")
@@ -255,7 +273,7 @@ func sign(client *http.Client, t_token string) {
 	}
 	jsonStr, err := json.Marshal(param)
 	if err != nil {
-		log.Fatalf("转换json错误: %v", err)
+		log.Printf("转换json错误: %v", err)
 	}
 
 	// 构建请求
@@ -273,13 +291,13 @@ func sign(client *http.Client, t_token string) {
 	// 发送请求并获取响应
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("failed to execute request: %v", err)
+		log.Printf("failed to execute request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("failed to read response body: %v", err)
+		log.Printf("failed to read response body: %v", err)
 	}
 
 	log.Printf("获取账号授权StatusCode: %s", resp.Status)
@@ -290,7 +308,7 @@ func sign(client *http.Client, t_token string) {
 		decode, _ := decode(string(body))
 		log.Printf("response: %s", decode)
 		if err := json.Unmarshal([]byte(decode), &response); err != nil {
-			log.Fatalf("failed to unmarshal response: %v", err)
+			log.Printf("failed to unmarshal response: %v", err)
 		}
 
 		clientId := response["clientId"].(string)
@@ -305,7 +323,7 @@ func sign(client *http.Client, t_token string) {
 
 		twitterResponse, err := twitter(clientId, state, codeChallenge, "", client, t_token)
 		if err != nil {
-			log.Fatalf("failed to authorize: %v", err)
+			log.Printf("failed to authorize: %v", err)
 		}
 		log.Printf("获取授权码: %s", twitterResponse)
 
@@ -569,7 +587,7 @@ func toJSON(v interface{}) string {
 	return string(b)
 }
 
-func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, error, float64) {
+func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, float64) {
 
 	log.Printf("%s  处理账户ID", userID)
 	baseURL := "https://twitter.com/i/api/1.1/friendships/create.json"
@@ -592,7 +610,8 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, e
 	fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
 	req, err := http.NewRequest("POST", fullURL, nil)
 	if err != nil {
-		return false, fmt.Errorf("failed to create request: %w", err), 0
+		log.Printf("failed to create request: %s", err)
+		return false, 0
 	}
 
 	req.Header = t.Headers
@@ -603,18 +622,21 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, e
 	clients := &http.Client{}
 	res, err := clients.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("request failed: %w", err), 0
+		log.Printf("request failed: %s", err)
+		return false, 0
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return false, fmt.Errorf("failed to read response body: %w", err), 0
+		log.Printf("failed to read response body: %s", err)
+		return false, 0
 	}
 
 	var response map[string]interface{}
 	if err := json.Unmarshal(body, &response); err != nil {
-		return false, fmt.Errorf("failed to parse JSON: %w", err), 0
+		log.Printf("failed to parse JSON: %s", err)
+		return false, 0
 	}
 
 	if res.StatusCode == 200 {
@@ -623,11 +645,11 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, e
 		log.Printf(Green+"当前关注人数：%f"+Reset, count)
 		if count > 8 {
 			log.Printf(Green+"关注达标：%f"+Reset, count)
-			return true, nil, count
+			return true, count
 		}
 		i := response["following"].(bool)
 		if !i {
-			return true, nil, count
+			return true, count
 		}
 
 	}
@@ -642,23 +664,23 @@ func (t *TwitterClient) follow(client *http.Client, userID, ct0 string) (bool, e
 					return t.follow(client, userID, cookie.Value)
 				}
 			}
-			return false, nil, 0
+			return false, 0
 		case 32, 64:
 			log.Printf("%s  账号被封: %d", t.AuthToken, errorCode)
-			return false, nil, 0
+			return false, 0
 		case 326:
 			log.Printf("%s  账号被锁定: %d", t.AuthToken, errorCode)
-			return false, nil, 0
+			return false, 0
 		case 344:
 			log.Printf("%s  账号关注限制: %d", t.AuthToken, errorCode)
-			return false, nil, 0
+			return false, 0
 		default:
 			log.Printf("%s  账号关注失败: %d", t.AuthToken, errorCode)
-			return false, nil, 0
+			return false, 0
 		}
 	}
 
-	return false, nil, 0
+	return false, 0
 }
 
 func (c *Client) check() bool {
