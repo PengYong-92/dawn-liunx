@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  nebx:
+    image: harbor.eyzhixing.com.cn/public/nebx:1.0
+    container_name: nebx
+    restart: always
+#    environment:
+#      - ENV_VAR_NAME=env_var_value
+#    ports:
+#      - "8080:8080"  # 将8080端口映射到主机的8080端口
+    volumes:
+      - ./config.json:/root/config.json
+      - ./ol_token.txt:/root/ol_token.txt
+      - ./token_py.txt:/root/token_py.txt
+    networks:
+      - nebx_network
+networks:
+  nebx_network:
+    driver: bridge
