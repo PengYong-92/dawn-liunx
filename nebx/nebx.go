@@ -252,26 +252,35 @@ func decode(info string) (string, error) {
 	return result, nil
 }
 func sign(client *http.Client, t_token, invcode string) {
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		log.Println("sign function failed: %v", r)
-	//	}
-	//}()
 	log.Printf("登录token：%s", t_token)
 	apikey := "CAP-C7314376D9418C07CF7CB36FEBF1C62B"
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	res, err := solver.CapSolver(ctx, apikey, map[string]any{
-		"type":       "ReCaptchaV2TaskProxyLess",
-		"websiteURL": "https://nebx.io",
-		"websiteKey": "6LdTHTUqAAAAAL9L_93M7N5z_oeDIkeyfB_Ud3Y6",
-	})
-	if err != nil {
-		log.Println(err)
+	var captcha string
+	var err error
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		res, err := solver.CapSolver(ctx, apikey, map[string]any{
+			"type":       "ReCaptchaV2TaskProxyLess",
+			"websiteURL": "https://nebx.io",
+			"websiteKey": "6LdTHTUqAAAAAL9L_93M7N5z_oeDIkeyfB_Ud3Y6",
+		})
+		if err == nil {
+			captcha = res.Solution["gRecaptchaResponse"].(string)
+			fmt.Println("SUCCESS captcha")
+			break
+		}
+
+		log.Printf("solver.CapSolver 调用失败: %v", err)
+		if i < maxRetries-1 {
+			log.Printf("重试 %d/%d", i+1, maxRetries)
+			time.Sleep(time.Second * 2) // 等待一段时间再重试
+		} else {
+			log.Printf("重试次数已用尽")
+			return
+		}
 	}
-	captcha := res.Solution["gRecaptchaResponse"].(string)
-	fmt.Println("SUCCESS captcha")
 
 	// 构建参数
 	uuid := time.Now().UnixNano() / int64(time.Millisecond)
@@ -282,6 +291,7 @@ func sign(client *http.Client, t_token, invcode string) {
 	jsonStr, err := json.Marshal(param)
 	if err != nil {
 		log.Printf("转换json错误: %v", err)
+		return
 	}
 
 	// 构建请求
@@ -300,12 +310,14 @@ func sign(client *http.Client, t_token, invcode string) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("failed to execute request: %v", err)
+		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("failed to read response body: %v", err)
+		return
 	}
 
 	log.Printf("获取账号授权StatusCode: %s", resp.Status)
@@ -317,10 +329,19 @@ func sign(client *http.Client, t_token, invcode string) {
 		log.Printf("response: %s", decode)
 		if err := json.Unmarshal([]byte(decode), &response); err != nil {
 			log.Printf("failed to unmarshal response: %v", err)
+			return
 		}
 
-		clientId := response["clientId"].(string)
-		urls := response["url"].(string)
+		clientId, ok := response["clientId"].(string)
+		if !ok {
+			log.Printf("invalid clientId type")
+			return
+		}
+		urls, ok := response["url"].(string)
+		if !ok {
+			log.Printf("invalid url type")
+			return
+		}
 
 		state, _ := getParameterValue(urls, "state")
 		log.Printf("state: %s", state)
@@ -332,6 +353,7 @@ func sign(client *http.Client, t_token, invcode string) {
 		twitterResponse, err := twitter(clientId, state, codeChallenge, "", client, t_token)
 		if err != nil {
 			log.Printf("failed to authorize: %v", err)
+			return
 		}
 		log.Printf("获取授权码: %s", twitterResponse)
 
@@ -796,6 +818,8 @@ func (c *Client) check() bool {
 }
 
 func main() {
+	os.Setenv("http_proxy", "http://172.16.100.237:7899")
+	os.Setenv("https_proxy", "http://172.16.100.237:7899")
 	// 使用 flag 包处理命令行参数
 	configPath := flag.String("config", "config.json", "配置文件的路径")
 	flag.Parse()
