@@ -265,7 +265,7 @@ func sign(client *http.Client, t_token, invcode string) {
 	res, err := solver.CapSolver(ctx, apikey, map[string]any{
 		"type":       "ReCaptchaV2TaskProxyLess",
 		"websiteURL": "https://nebx.io",
-		"websiteKey": "6LcqEzMqAAAAAH0rnqHOElnkzZUv_yXsi_AOis7t",
+		"websiteKey": "6LdTHTUqAAAAAL9L_93M7N5z_oeDIkeyfB_Ud3Y6",
 	})
 	if err != nil {
 		log.Println(err)
