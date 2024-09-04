@@ -465,7 +465,7 @@ func main() {
 
 	proxyURL := flag.String("proxy", PROXY_URL, "代理 URL")
 	tokenFilePath := flag.String("tokenfile", defaultTokenFilePath, "token文件位置")
-	referralCode := flag.String("referralcode", "qSOPR4VMK8", "Referral Code")
+	referralCode := flag.String("referralcode", "qSOPR4VMK8,AN6csZWQRr,WFmjZuKv2U,d8SoYNZKHk,h95p6oWS6R", "Referral Code")
 	referralType := flag.Int("referralType", 1, "默认只刷邀请任务，需要全任务，输入0")
 
 	flag.Parse()
@@ -501,6 +501,12 @@ func main() {
 		loginReferralCode := refCode[conout%refCodeLen]
 
 		authToken := newScanner.Text()
+		accountParts := strings.Split(authToken, "----")
+		if len(accountParts) > 5 {
+			authToken = accountParts[len(accountParts)-5]
+		}
+		log.Printf(Green+"当前TOKEN：%s"+Reset, authToken)
+		log.Printf(Green+"当前邀请码：%s"+Reset, loginReferralCode)
 		//登录获取程序token
 		oauthToken, loginCookies := login(client, loginReferralCode)
 		if oauthToken == "" {
@@ -539,7 +545,7 @@ func main() {
 		time.Sleep(5 * time.Second)
 
 		if conout >= 10 {
-			loginReferralCode = refCode[1]
+			fmt.Println("已经使用10个authToken")
 		}
 	}
 	wg.Wait()
