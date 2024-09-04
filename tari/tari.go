@@ -466,7 +466,12 @@ func main() {
 	proxyURL := flag.String("proxy", PROXY_URL, "代理 URL")
 	tokenFilePath := flag.String("tokenfile", defaultTokenFilePath, "token文件位置")
 	referralCode := flag.String("referralcode", "qSOPR4VMK8", "Referral Code")
+	referralType := flag.Int("referralType", 1, "默认只刷邀请任务，需要全任务，输入0")
+
 	flag.Parse()
+
+	refCode := strings.Split(*referralCode, ",")
+	refCodeLen := len(refCode)
 
 	proxy, err := url.Parse(*proxyURL)
 	if err != nil {
@@ -488,12 +493,16 @@ func main() {
 	defer tokenFile.Close()
 
 	var wg sync.WaitGroup // 创建一个 WaitGroup
+	var conout = 0
 
 	newScanner := bufio.NewScanner(tokenFile)
 	for newScanner.Scan() {
+		// 使用循环中的referral code
+		loginReferralCode := refCode[conout%refCodeLen]
+
 		authToken := newScanner.Text()
 		//登录获取程序token
-		oauthToken, loginCookies := login(client, *referralCode)
+		oauthToken, loginCookies := login(client, loginReferralCode)
 		if oauthToken == "" {
 			removeAuthToken(*tokenFilePath, authToken)
 			continue
@@ -522,16 +531,21 @@ func main() {
 			wg.Add(1) // 增加 WaitGroup 计数
 			go func(authToken string) {
 				defer wg.Done() // 任务完成时减少 WaitGroup 计数
-				successTask(response, client, authorizationToken, tokenFilePath, authToken)
+				successTask(response, client, authorizationToken, *referralType)
 			}(authToken)
 		}
 		removeAuthToken(*tokenFilePath, authToken)
+		conout++
 		time.Sleep(5 * time.Second)
+
+		if conout >= 10 {
+			loginReferralCode = refCode[1]
+		}
 	}
 	wg.Wait()
 }
 
-func successTask(response Response, client *http.Client, authorizationToken string, tokenFilePath *string, authToken string) {
+func successTask(response Response, client *http.Client, authorizationToken string, rtrpe int) {
 	for _, quest := range response.Quests {
 		if !quest.IsHidden && !quest.IsExpired {
 			name := quest.Name

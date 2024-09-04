@@ -6,13 +6,21 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/mattn/go-colorable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"image"
+	"image/color"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/jpeg"
+	_ "image/png"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -29,8 +37,8 @@ var logger *zap.Logger
 
 func main() {
 	// 设置代理
-	_ = os.Setenv("https_proxy", "http://172.16.100.237:7899")
-	_ = os.Setenv("http_proxy", "http://172.16.100.237:7899")
+	//_ = os.Setenv("https_proxy", "http://172.16.100.237:7899")
+	//_ = os.Setenv("http_proxy", "http://172.16.100.237:7899")
 	config := zap.NewDevelopmentEncoderConfig()
 	config.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	logger = zap.New(zapcore.NewCore(
@@ -52,6 +60,62 @@ func main() {
 
 	select {}
 
+	//saveBase64ToFile(grayscale, "output.png")
+
+}
+
+/*
+	func saveBase64ToFile(imgBase64, fileName string) error {
+		imgBase64 = strings.Split(imgBase64, ",")[1]
+		imgData, err := base64.StdEncoding.DecodeString(imgBase64)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(fileName, imgData, 0644)
+	}
+*/
+func convertToGrayScale(imgBase64 string) string {
+	// 解码 Base64
+	imgData, err := base64.StdEncoding.DecodeString(imgBase64)
+	if err != nil {
+		log.Fatalf("解码 Base64 失败: %v", err)
+	}
+
+	// 解码图像（支持自动检测格式）
+	img, format, err := image.Decode(bytes.NewReader(imgData))
+	if err != nil {
+		log.Fatalf("解码图像失败: %v", err)
+	}
+
+	log.Printf("图像格式: %s", format)
+	// 创建一个新的灰度图像
+	bounds := img.Bounds()
+	grayImg := image.NewGray(bounds)
+	// 调整灰度值的因子
+	darkenFactor := 0.2 // 取值范围 0-1，0 表示完全黑色，1 表示原始灰度
+
+	// 遍历原图像的每个像素，并将其转换为加深的灰度
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			originalColor := img.At(x, y)
+			grayColor := color.GrayModel.Convert(originalColor).(color.Gray)
+			// 调整灰度值
+			newGrayValue := uint8(float64(grayColor.Y) * darkenFactor)
+			grayImg.Set(x, y, color.Gray{Y: newGrayValue})
+		}
+	}
+
+	// 将加深的灰度图像编码为 JPEG 格式
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, grayImg, nil); err != nil {
+		log.Fatalf("编码灰度图像失败: %v", err)
+	}
+
+	// 将 JPEG 编码的数据转换为 Base64
+	grayBase64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	// 返回新的 Base64 编码字符串，带上前缀 "data:image/jpeg;base64,"
+	return grayBase64
 }
 
 func ping(email string) {
@@ -68,20 +132,23 @@ func ping(email string) {
 		SetHeader("sec-fetch-mode", "cors").
 		SetHeader("sec-fetch-site", "cross-site").
 		SetHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
-
+	da, pizzId := captcha(client)
+	log.Printf("答案：%s ===pizzId：%s", da, pizzId)
 	loginRequest := request.LoginRequest{
 		Username: email,
 		Password: "1qazXSW@dwan",
+		PuzzleId: pizzId,
+		Ans:      da,
 		Logindata: struct {
 			V        string `json:"_v"`
 			Datetime string `json:"datetime"`
 		}(struct {
 			V        string
 			Datetime string
-		}{V: "1.0.6", Datetime: time.Now().Format("2006-01-02 15:04:05")}),
+		}{V: "1.0.7", Datetime: time.Now().Format("2006-01-02 15:04:05")}),
 	}
 	var loginResponse request.LoginResponse
-	_, err := client.R().
+	res, err := client.R().
 		SetBody(loginRequest).
 		SetResult(&loginResponse).
 		Post(constant.LoginURL)
@@ -92,12 +159,24 @@ func ping(email string) {
 		return
 	}
 	lastLogin := time.Now()
+	// 解析 JSON 响应
+	//var result map[string]interface{}
+	//err = json.Unmarshal(res.Body(), &result)
+	log.Printf(res.String())
+
+	//登录失败重试
+	var result map[string]interface{}
+	err = json.Unmarshal(res.Body(), &result)
+	if nil == result["data"] {
+		go ping(email)
+		return
+	}
 
 	keepAliveRequest := map[string]interface{}{
 		"username":     email,
 		"extensionid":  "fpdkjdnhkakefebpekbdhillbhonfjjp",
 		"numberoftabs": 0,
-		"_v":           "1.0.6",
+		"_v":           "1.0.7",
 	}
 	// 定义一个用于解析的结构体
 	type Response struct {
@@ -112,6 +191,7 @@ func ping(email string) {
 			} `json:"rewardPoint"`
 		} `json:"data"`
 	}
+	updateProfile(loginResponse.Data.Token, client)
 	for {
 		if time.Now().Sub(lastLogin) > 2*time.Hour {
 			loginRequest.Logindata.Datetime = time.Now().Format("2006-01-02 15:04:05")
@@ -126,7 +206,6 @@ func ping(email string) {
 				return
 			}
 		}
-
 		res, err := client.R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			SetBody(keepAliveRequest).
@@ -145,6 +224,7 @@ func ping(email string) {
 			continue
 		}
 		logger.Info("Get point success", zap.String("acc", email), zap.String("res", res.String()))
+
 		// 解析 JSON 响应
 		var result map[string]interface{}
 		err = json.Unmarshal(res.Body(), &result)
@@ -171,6 +251,10 @@ func ping(email string) {
 		}
 
 		points, ok := rewardPoint["points"].(float64)
+		twitterXIdPoints, ok := rewardPoint["twitter_x_id_points"].(float64)
+		discordidPoints, ok := rewardPoint["discordid_points"].(float64)
+		telegramidPoints, ok := rewardPoint["telegramid_points"].(float64)
+
 		if !ok {
 			logger.Error("Failed to get points from rewardPoint")
 			time.Sleep(3 * time.Minute)
@@ -191,7 +275,7 @@ func ping(email string) {
 		// 创建请求数据
 		data := RequestData{
 			Acc:       acc,
-			Points:    points,
+			Points:    points + twitterXIdPoints + discordidPoints + telegramidPoints,
 			IPAddress: externalIP,
 		}
 
@@ -203,10 +287,16 @@ func ping(email string) {
 			continue
 		}
 		// 输出响应结果
-		fmt.Printf("Response: %+v\n", response)
-
+		logger.Info("上传信息返回：" + toJSON(response))
 		time.Sleep(3 * time.Minute)
 	}
+}
+func toJSON(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 type RequestData struct {
@@ -254,4 +344,133 @@ func GetExternalIP() (string, error) {
 
 	// 返回去除换行符的 IP 地址
 	return strings.TrimSpace(string(body)), nil
+}
+func captcha(client *resty.Client) (string, string) {
+	get, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle")
+	if err != nil {
+		log.Printf("Failed to get JISUAN puzzle: %v", err)
+		return "", ""
+	}
+	// 解析 JSON 响应
+	var result map[string]interface{}
+	err = json.Unmarshal(get.Body(), &result)
+	if err != nil {
+		logger.Error("captcha Failed to parse JSON", zap.Error(err))
+		time.Sleep(3 * time.Minute)
+		return "", ""
+	}
+	puzzleId := result["puzzle_id"].(string)
+	log.Printf(get.String())
+	response, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle-image?puzzle_id=" + puzzleId)
+	if err != nil {
+		log.Printf("Failed to get JISUAN puzzle: %v", err)
+		return "", ""
+	}
+	log.Printf(response.String())
+	var responseResult map[string]interface{}
+	err = json.Unmarshal(response.Body(), &responseResult)
+	if err != nil {
+		logger.Error("Failed to parse JSON", zap.Error(err))
+		time.Sleep(3 * time.Minute)
+		return "", ""
+	}
+	if responseResult["success"].(bool) == true {
+		imgBase64 := responseResult["imgBase64"].(string)
+		grayscale := convertToGrayScale(imgBase64)
+		s := jisuan(grayscale)
+		return s, puzzleId
+	}
+	return "", ""
+}
+
+// jisuan 发送OCR请求并计算表达式结果
+func jisuan(imgBase64 string) string {
+	body := map[string]interface{}{
+		"base64": imgBase64,
+		"options": map[string]string{
+			"data.format": "text",
+		},
+	}
+
+	// 将body转换为JSON字符串
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		log.Fatalf("序列化JSON失败: %v", err)
+	}
+
+	// 发送POST请求
+	//resp, err := http.Post("http://127.0.0.1:1224/api/ocr", "application/json", bytes.NewBuffer(bodyJSON))
+	resp, err := http.Post("http://107.148.176.146:1224/api/ocr", "application/json", bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		log.Fatalf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 解析响应
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Fatalf("解析响应失败: %v", err)
+	}
+
+	data := result["data"].(string)
+	trim := strings.TrimSpace(data)
+
+	// 格式化表达式，确保运算符前后有空格
+	//re := regexp.MustCompile(`([+\-*/])`)
+	//trim = re.ReplaceAllString(trim, " $1 ")
+
+	log.Printf("识别结果: %s", data)
+
+	// 计算表达式结果
+	//v := evaluateExpression(trim)
+	return trim
+}
+
+func updateProfile(token string, client *resty.Client) {
+	twitterRequest := map[string]interface{}{
+		"twitter_x_id": "twitter_x_id",
+	}
+	twitter, err := client.R().
+		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
+		SetHeader("content-type", "application/json").
+		SetBody(twitterRequest).
+		Post("https://www.aeropres.in/chromeapi/dawn/v1/profile/update")
+	if err != nil {
+		logger.Error("请求twitter异常", zap.Error(err))
+		return
+	}
+	logger.Info("请求twitter：" + twitter.String())
+
+	time.Sleep(3 * time.Second)
+
+	discordidRequest := map[string]interface{}{
+		"discordid": "discordid",
+	}
+	discordid, err := client.R().
+		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
+		SetHeader("content-type", "application/json").
+		SetBody(discordidRequest).
+		Post("https://www.aeropres.in/chromeapi/dawn/v1/profile/update")
+	if err != nil {
+		logger.Error("请求discord异常", zap.Error(err))
+		return
+	}
+	logger.Info("请求discord：" + discordid.String())
+
+	time.Sleep(3 * time.Second)
+
+	telegramidRequest := map[string]interface{}{
+		"telegramid": "telegramid",
+	}
+
+	telegramid, err := client.R().
+		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
+		SetHeader("content-type", "application/json").
+		SetBody(telegramidRequest).
+		Post("https://www.aeropres.in/chromeapi/dawn/v1/profile/update")
+	if err != nil {
+		logger.Error("请求telegra异常", zap.Error(err))
+		return
+	}
+	logger.Info("请求telegra：" + telegramid.String())
 }
