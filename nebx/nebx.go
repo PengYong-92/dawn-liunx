@@ -818,8 +818,8 @@ func (c *Client) check() bool {
 }
 
 func main() {
-	os.Setenv("http_proxy", "http://172.16.100.237:7899")
-	os.Setenv("https_proxy", "http://172.16.100.237:7899")
+	//os.Setenv("http_proxy", "http://172.16.100.237:7899")
+	//os.Setenv("https_proxy", "http://172.16.100.237:7899")
 	// 使用 flag 包处理命令行参数
 	configPath := flag.String("config", "config.json", "配置文件的路径")
 	flag.Parse()
