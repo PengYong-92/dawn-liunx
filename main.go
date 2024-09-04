@@ -167,8 +167,8 @@ func ping(email string) {
 	var result map[string]interface{}
 	err = json.Unmarshal(res.Body(), &result)
 	if nil == result["data"] {
-		ping(email)
-		time.Sleep(3 * time.Second)
+		go ping(email)
+		time.Sleep(1 * time.Minute)
 		return
 	}
 
