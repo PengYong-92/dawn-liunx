@@ -82,12 +82,11 @@ func convertToGrayScale(imgBase64 string) string {
 	}
 
 	// 解码图像（支持自动检测格式）
-	img, format, err := image.Decode(bytes.NewReader(imgData))
+	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
 		log.Fatalf("解码图像失败: %v", err)
 	}
 
-	log.Printf("图像格式: %s", format)
 	// 创建一个新的灰度图像
 	bounds := img.Bounds()
 	grayImg := image.NewGray(bounds)
