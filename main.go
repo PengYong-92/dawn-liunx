@@ -133,7 +133,6 @@ func ping(email string) {
 		SetHeader("sec-fetch-site", "cross-site").
 		SetHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
 	da, pizzId := captcha(client)
-	log.Printf("答案：%s ===pizzId：%s", da, pizzId)
 	loginRequest := request.LoginRequest{
 		Username: email,
 		Password: "1qazXSW@dwan",
@@ -168,7 +167,7 @@ func ping(email string) {
 	var result map[string]interface{}
 	err = json.Unmarshal(res.Body(), &result)
 	if nil == result["data"] {
-		go ping(email)
+		ping(email)
 		return
 	}
 
@@ -360,13 +359,11 @@ func captcha(client *resty.Client) (string, string) {
 		return "", ""
 	}
 	puzzleId := result["puzzle_id"].(string)
-	log.Printf(get.String())
 	response, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle-image?puzzle_id=" + puzzleId)
 	if err != nil {
 		log.Printf("Failed to get JISUAN puzzle: %v", err)
 		return "", ""
 	}
-	log.Printf(response.String())
 	var responseResult map[string]interface{}
 	err = json.Unmarshal(response.Body(), &responseResult)
 	if err != nil {

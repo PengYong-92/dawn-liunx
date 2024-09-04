@@ -549,8 +549,14 @@ func successTask(response Response, client *http.Client, authorizationToken stri
 	for _, quest := range response.Quests {
 		if !quest.IsHidden && !quest.IsExpired {
 			name := quest.Name
-			doTask(client, name, authorizationToken)
-			time.Sleep(1 * time.Second)
+			if rtrpe == 1 && ("retweet-on-x-new-mandatory" == name || "follow-on-x" == name || "retweet-on-x" == name) {
+				doTask(client, name, authorizationToken)
+				time.Sleep(1 * time.Second)
+			}
+			if rtrpe == 2 {
+				doTask(client, name, authorizationToken)
+				time.Sleep(1 * time.Second)
+			}
 		}
 	}
 }
