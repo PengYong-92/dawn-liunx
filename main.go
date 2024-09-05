@@ -131,7 +131,9 @@ func ping(email string) {
 		SetHeader("sec-fetch-mode", "cors").
 		SetHeader("sec-fetch-site", "cross-site").
 		SetHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
+
 	da, pizzId := captcha(client)
+
 	loginRequest := request.LoginRequest{
 		Username: email,
 		Password: "1qazXSW@dwan",
@@ -166,8 +168,8 @@ func ping(email string) {
 	var result map[string]interface{}
 	err = json.Unmarshal(res.Body(), &result)
 	if nil == result["data"] {
+		time.Sleep(2 * time.Second)
 		go ping(email)
-		time.Sleep(2 * time.Minute)
 		return
 	}
 
@@ -190,7 +192,9 @@ func ping(email string) {
 			} `json:"rewardPoint"`
 		} `json:"data"`
 	}
+
 	updateProfile(loginResponse.Data.Token, client)
+
 	for {
 		if time.Now().Sub(lastLogin) > 2*time.Hour {
 			loginRequest.Logindata.Datetime = time.Now().Format("2006-01-02 15:04:05")
@@ -205,16 +209,18 @@ func ping(email string) {
 				return
 			}
 		}
-		res, err := client.R().
+		res, err := client.SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			SetBody(keepAliveRequest).
 			Post(constant.KeepAliveURL)
 		if err != nil {
 			logger.Error("Keep alive error", zap.String("acc", email), zap.Error(err))
+			time.Sleep(3 * time.Minute)
+			continue
 		}
 		logger.Info("Keep alive success", zap.String("acc", email), zap.String("res", res.String()))
 
-		res, err = client.R().
+		res, err = client.SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			Get(constant.GetPointURL)
 		if err != nil {
