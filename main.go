@@ -119,8 +119,8 @@ func convertToGrayScale(imgBase64 string) string {
 
 func ping(email string) {
 	rand.Seed(time.Now().UnixNano())
-	client := resty.New().SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").
-		//client := resty.New().
+	//client := resty.New().SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").
+	client := resty.New().
 		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
 		SetHeader("content-type", "application/json").
 		SetHeader("origin", "chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp").
