@@ -360,8 +360,8 @@ func captcha(client *resty.Client) (string, string) {
 	var result map[string]interface{}
 	err = json.Unmarshal(get.Body(), &result)
 	if err != nil {
-		logger.Error("captcha Failed to parse JSON", zap.Error(err))
-		time.Sleep(3 * time.Minute)
+		logger.Error("请求错误，暂停5分钟", zap.Error(err))
+		time.Sleep(5 * time.Minute)
 		return "", ""
 	}
 	puzzleId := result["puzzle_id"].(string)
