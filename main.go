@@ -141,6 +141,21 @@ func ping(email string) {
 		logger.Info("识别错误：" + da)
 		return
 	}
+	// 判断 trim 是否包含换行符或空格
+	if strings.Contains(da, "\n") || strings.Contains(da, "\r\n") {
+		log.Println("识别结果包含换行符")
+		time.Sleep(2 * time.Second)
+		go ping(email)
+		return
+	}
+
+	if strings.Contains(da, " ") {
+		log.Println("识别结果包含空格")
+		time.Sleep(2 * time.Second)
+		go ping(email)
+		return
+	}
+
 	loginRequest := request.LoginRequest{
 		Username: email,
 		Password: "1qazXSW@dwan",
@@ -424,17 +439,16 @@ func jisuan(imgBase64 string) string {
 		return ""
 	}
 
-	data := result["data"].(string)
-	trim := strings.TrimSpace(data)
-
 	// 格式化表达式，确保运算符前后有空格
 	//re := regexp.MustCompile(`([+\-*/])`)
 	//trim = re.ReplaceAllString(trim, " $1 ")
 
-	log.Printf("识别结果: %s", data)
-
 	// 计算表达式结果
 	//v := evaluateExpression(trim)
+
+	data := result["data"].(string)
+	trim := strings.TrimSpace(data)
+	log.Printf("识别结果: %s", trim)
 	return trim
 }
 
