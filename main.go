@@ -139,18 +139,20 @@ func ping(email string) {
 	da, pizzId := captcha(client)
 	if len(da) < 5 {
 		logger.Info("识别错误：" + da)
+		time.Sleep(2 * time.Second)
+		go ping(email)
 		return
 	}
 	// 判断 trim 是否包含换行符或空格
 	if strings.Contains(da, "\n") || strings.Contains(da, "\r\n") {
-		log.Println("识别结果包含换行符")
+		logger.Info("识别结果包含换行符")
 		time.Sleep(2 * time.Second)
 		go ping(email)
 		return
 	}
 
 	if strings.Contains(da, " ") {
-		log.Println("识别结果包含空格")
+		logger.Info("识别结果包含空格")
 		time.Sleep(2 * time.Second)
 		go ping(email)
 		return
@@ -448,7 +450,7 @@ func jisuan(imgBase64 string) string {
 
 	data := result["data"].(string)
 	trim := strings.TrimSpace(data)
-	log.Printf("识别结果: %s", trim)
+	logger.Info("识别结果: " + trim)
 	return trim
 }
 
