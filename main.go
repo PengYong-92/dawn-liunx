@@ -187,7 +187,7 @@ func ping(email string) {
 		"_v":           "1.0.7",
 	}
 	// 定义一个用于解析的结构体
-	type Response struct {
+	/*	type Response struct {
 		Status  bool   `json:"status"`
 		Message string `json:"message"`
 		Data    struct {
@@ -198,9 +198,9 @@ func ping(email string) {
 				Points float64 `json:"points"`
 			} `json:"rewardPoint"`
 		} `json:"data"`
-	}
+	}*/
 
-	updateProfile(loginResponse.Data.Token, client)
+	go updateProfile(loginResponse.Data.Token, client)
 
 	for {
 		if time.Now().Sub(lastLogin) > 2*time.Hour {
@@ -374,7 +374,8 @@ func captcha(client *resty.Client) (string, string) {
 	puzzleId := result["puzzle_id"].(string)
 	response, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle-image?puzzle_id=" + puzzleId)
 	if err != nil {
-		log.Printf("Failed to get JISUAN puzzle: %v", err)
+		logger.Error("请求错误，暂停5分钟", zap.Error(err))
+		time.Sleep(5 * time.Minute)
 		return "", ""
 	}
 	var responseResult map[string]interface{}
