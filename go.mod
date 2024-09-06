@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	github.com/go-resty/resty/v2 v2.14.0
+	github.com/google/uuid v1.6.0
 	github.com/mattn/go-colorable v0.1.13
 	go.uber.org/zap v1.27.0
 )

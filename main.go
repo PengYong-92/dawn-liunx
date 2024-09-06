@@ -35,6 +35,10 @@ var lock struct {
 
 var logger *zap.Logger
 
+const (
+	PROXY__URL = "http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125"
+)
+
 func main() {
 	// 设置代理
 	//_ = os.Setenv("https_proxy", "http://172.16.100.237:7899")
@@ -133,7 +137,10 @@ func ping(email string) {
 		SetHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
 
 	da, pizzId := captcha(client)
-
+	if len(da) < 5 {
+		logger.Info("识别错误：" + da)
+		return
+	}
 	loginRequest := request.LoginRequest{
 		Username: email,
 		Password: "1qazXSW@dwan",
@@ -209,7 +216,7 @@ func ping(email string) {
 				return
 			}
 		}
-		res, err := client.SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").R().
+		res, err := client.SetProxy(PROXY__URL).R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			SetBody(keepAliveRequest).
 			Post(constant.KeepAliveURL)
@@ -220,7 +227,7 @@ func ping(email string) {
 		}
 		logger.Info("Keep alive success", zap.String("acc", email), zap.String("res", res.String()))
 
-		res, err = client.SetProxy("http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125").R().
+		res, err = client.SetProxy(PROXY__URL).R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			Get(constant.GetPointURL)
 		if err != nil {
@@ -351,7 +358,7 @@ func GetExternalIP() (string, error) {
 	return strings.TrimSpace(string(body)), nil
 }
 func captcha(client *resty.Client) (string, string) {
-	get, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle")
+	get, err := client.SetProxy(PROXY__URL).R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle")
 	if err != nil {
 		log.Printf("Failed to get JISUAN puzzle: %v", err)
 		return "", ""
@@ -413,6 +420,7 @@ func jisuan(imgBase64 string) string {
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Fatalf("解析响应失败: %v", err)
+		return ""
 	}
 
 	data := result["data"].(string)
@@ -433,7 +441,7 @@ func updateProfile(token string, client *resty.Client) {
 	twitterRequest := map[string]interface{}{
 		"twitter_x_id": "twitter_x_id",
 	}
-	twitter, err := client.R().
+	twitter, err := client.SetProxy(PROXY__URL).R().
 		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
 		SetHeader("content-type", "application/json").
 		SetBody(twitterRequest).
@@ -449,7 +457,7 @@ func updateProfile(token string, client *resty.Client) {
 	discordidRequest := map[string]interface{}{
 		"discordid": "discordid",
 	}
-	discordid, err := client.R().
+	discordid, err := client.SetProxy(PROXY__URL).R().
 		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
 		SetHeader("content-type", "application/json").
 		SetBody(discordidRequest).
@@ -466,7 +474,7 @@ func updateProfile(token string, client *resty.Client) {
 		"telegramid": "telegramid",
 	}
 
-	telegramid, err := client.R().
+	telegramid, err := client.SetProxy(PROXY__URL).R().
 		SetHeader("authorization", fmt.Sprintf("Bearer %v", token)).
 		SetHeader("content-type", "application/json").
 		SetBody(telegramidRequest).
