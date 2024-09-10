@@ -945,7 +945,7 @@ func (t *TwitterClient) createTweet(tweetText, url, ct0 string) (bool, string) {
 			for _, cookie := range res.Cookies() {
 				if cookie.Name == "ct0" {
 					t.Headers.Set("x-csrf-token", cookie.Value)
-					return t.createTweet(tweetText, url, queryId, cookie.Value)
+					return t.createTweet(tweetText, url, cookie.Value)
 				}
 			}
 			return false, ""
