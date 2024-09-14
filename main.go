@@ -234,7 +234,7 @@ func ping(email string) {
 				return
 			}
 		}
-		res, err := client.SetProxy(PROXY__URL).R().
+		res, err := client.R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			SetBody(keepAliveRequest).
 			Post(constant.KeepAliveURL)
@@ -245,7 +245,7 @@ func ping(email string) {
 		}
 		logger.Info("Keep alive success", zap.String("acc", email), zap.String("res", res.String()))
 
-		res, err = client.SetProxy(PROXY__URL).R().
+		res, err = client.R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			Get(constant.GetPointURL)
 		if err != nil {
