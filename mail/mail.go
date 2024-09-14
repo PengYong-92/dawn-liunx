@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
@@ -76,7 +77,7 @@ func main() {
 		email := generateRandomEmail()
 
 		// 构建要执行的Docker命令
-		cmd := fmt.Sprintf(`docker exec -it mailserver setup email add "%s" "1qazXSW@pengy"`, email)
+		cmd := fmt.Sprintf(`docker exec -t mailserver setup email add "%s" "1qazXSW@pengy"`, email)
 		err := runCommand(client, cmd)
 		if err != nil {
 			log.Printf("执行命令失败: %v", err)
@@ -102,7 +103,7 @@ func main() {
 func generateRandomEmail() string {
 	// 从单词库中选择两个单词
 	word1 := wordList[randomIndex(len(wordList))]
-	word2 := wordList[randomIndex(len(wordList))]
+	//word2 := wordList[randomIndex(len(wordList))]
 
 	// 生成随机的数字部分
 	bytes := make([]byte, 4)
@@ -112,7 +113,7 @@ func generateRandomEmail() string {
 	}
 	randomNumber := hex.EncodeToString(bytes)
 
-	return fmt.Sprintf("%s-%s-%s@yiyuanweb3.uk", word1, word2, randomNumber)
+	return fmt.Sprintf("%s%s@yiyuanweb3.uk", word1, randomNumber)
 }
 
 // 生成随机索引
@@ -150,7 +151,17 @@ func runCommand(client *ssh.Client, cmd string) error {
 		return err
 	}
 	defer session.Close()
-
+	// 捕获输出
+	var outputBuf, errorBuf bytes.Buffer
+	session.Stdout = &outputBuf
+	session.Stderr = &errorBuf
 	// 执行命令
-	return session.Run(cmd)
+	err = session.Run(cmd)
+	if err != nil {
+		log.Printf("命令执行失败: %v\n输出: %s\n错误: %s", err, outputBuf.String(), errorBuf.String())
+		return err
+	}
+
+	fmt.Printf("命令输出: %s\n", outputBuf.String())
+	return nil
 }
