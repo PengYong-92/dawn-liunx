@@ -37,7 +37,7 @@ var logger *zap.Logger
 
 const (
 	//PROXY__URL = "http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125"
-	PROXY__URL = "http://http://EBF526E0437F7BF0-residential-country_DE-r_1m-s_zGLKzDNgUV:S6DxmHXr@gate.nstproxy.io:24125"
+	PROXY__URL = "http://EBF526E0437F7BF0-residential-country_DE-r_1m-s_zGLKzDNgUV:S6DxmHXr@gate.nstproxy.io:24125"
 )
 
 func main() {
