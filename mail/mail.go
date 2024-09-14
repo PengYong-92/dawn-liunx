@@ -18,7 +18,8 @@ const (
 	username          = "root"
 	password          = "r9452tkHWVqdfL9ifknw7K0PReRAf"
 	outputFile        = "emails.csv"
-	defaultIterations = 10 // 默认循环次数
+	defaultIterations = 10                 // 默认循环次数
+	defaultPsw        = "1qazXSW@network3" // 默认循环次数
 )
 
 // 扩展的单词库
@@ -42,7 +43,9 @@ var wordList = []string{
 func main() {
 	// 解析命令行参数
 	var iterations int
+	var defpsw string
 	flag.IntVar(&iterations, "number", defaultIterations, "生成数量")
+	flag.StringVar(&defpsw, "defpsw", defaultPsw, "邮箱密码")
 	flag.Parse()
 
 	// 检查并创建CSV文件
@@ -77,7 +80,7 @@ func main() {
 		email := generateRandomEmail()
 
 		// 构建要执行的Docker命令
-		cmd := fmt.Sprintf(`docker exec -t mailserver setup email add "%s" "1qazXSW@pengy"`, email)
+		cmd := fmt.Sprintf(`docker exec -t mailserver setup email add "%s" "%s"`, email, defpsw)
 		err := runCommand(client, cmd)
 		if err != nil {
 			log.Printf("执行命令失败: %v", err)
