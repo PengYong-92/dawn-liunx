@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -32,6 +33,43 @@ func CapSolver(ctx context.Context, apiKey string, taskData map[string]any) (*ca
 		return nil, errors.New(res.ErrorDescription)
 	}
 
+	uri = "https://api.capsolver.com/getTaskResult"
+	for {
+		select {
+		case <-ctx.Done():
+			return res, errors.New("solve timeout")
+		case <-time.After(time.Second):
+			break
+		}
+		res, err = request(ctx, uri, map[string]any{
+			"clientKey": apiKey,
+			"taskId":    res.TaskId,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if res.ErrorId == 1 {
+			return nil, errors.New(res.ErrorDescription)
+		}
+		if res.Status == "ready" {
+			return res, err
+		}
+	}
+}
+
+func HCaptcha(ctx context.Context, apiKey string, taskData map[string]any) (*capSolverResponse, error) {
+	uri := "https://api.capsolver.com/createTask"
+	res, err := request(ctx, uri, map[string]any{
+		"clientKey": apiKey,
+		"task":      taskData,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ErrorId == 1 {
+		return nil, errors.New(res.ErrorDescription)
+	}
+	log.Printf(res.TaskId)
 	uri = "https://api.capsolver.com/getTaskResult"
 	for {
 		select {

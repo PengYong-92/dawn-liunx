@@ -1,0 +1,26 @@
+version: '3.3'
+
+services:
+  network3:
+    image: peng198/network3:v2.1.0-a
+    ports:
+      - "18080:8080"
+    volumes:
+      - ./data:/usr/local/etc/wireguard
+    environment:
+      - ADDRESS=109.199.99.87
+      - PORT=18080
+      - EMAIL=huhu092313@163.com
+      - bindEmailNodeUrl=http://account.network3.ai:8080/api/bind_email_node
+    healthcheck:
+      test: curl -fs http://localhost:8080/ || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    privileged: true
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    restart: always

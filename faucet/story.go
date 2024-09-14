@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/playwright-community/playwright-go"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,6 +22,138 @@ const (
 )
 
 func main() {
+	// 启动 Playwright
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start Playwright: %v", err)
+	}
+	defer pw.Stop()
+
+	// 启动 Chromium 浏览器
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(true), // 使用无头模式
+	})
+	if err != nil {
+		log.Fatalf("could not launch browser: %v", err)
+	}
+	defer browser.Close()
+
+	// 创建新的浏览器上下文
+	context, err := browser.NewContext()
+	if err != nil {
+		log.Fatalf("could not create browser context: %v", err)
+	}
+
+	// 创建新的页面
+	page, err := context.NewPage()
+	if err != nil {
+		log.Fatalf("could not create page: %v", err)
+	}
+
+	// 下载 JavaScript 文件内容
+	jsURL := "https://faucet.story.foundation/.well-known/vercel/security/static/challenge.v2.min.js"
+	jsCode, err := downloadJavaScript(jsURL)
+	if err != nil {
+		log.Fatalf("could not download JavaScript file: %v", err)
+	}
+
+	// 在页面中执行 JavaScript
+	result, err := page.Evaluate(fmt.Sprintf(`
+        (() => {
+            %s
+            // Return something if needed
+            return 'JavaScript executed';
+        })()
+    `, jsCode))
+	if err != nil {
+		log.Fatalf("could not evaluate JavaScript: %v", err)
+	}
+
+	// 打印结果
+	fmt.Println("Execution result:", result)
+}
+
+// downloadJavaScript 从指定的 URL 下载 JavaScript 文件内容
+func downloadJavaScript(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	jsCode, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsCode), nil
+}
+
+func requestChallenge(client *http.Client) {
+	url := "https://faucet.story.foundation/.well-known/vercel/security/request-challenge"
+	method := "GET"
+
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	req.Header.Add("Origin", "https://faucet.story.foundation")
+	req.Header.Add("Referer", "https://faucet.story.foundation/.well-known/vercel/security/static/challenge.v2.min.js")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.100 Safari/537.36")
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("Host", "faucet.story.foundation")
+	req.Header.Add("Connection", "keep-alive")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(body))
+
+}
+
+func toJSON(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func login(client *http.Client) {
+	providersUrl := "https://faucet.story.foundation/api/auth/providers"
+	req, err := http.NewRequest("GET", providersUrl, nil)
+	if err != nil {
+		log.Printf("初始化失败：%s", providersUrl)
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("初始化失败：%s", providersUrl)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("读取body失败: %v", err)
+		return
+	}
+	bodyJson := toJSON(body)
+	log.Printf("providers返回：%s", bodyJson)
+}
+
+func waters() {
 	captcha := getCaptcha()
 
 	proxy, err := url.Parse(proxyUrl)
@@ -92,7 +226,6 @@ func main() {
 	// 输出响应
 	fmt.Println("响应状态码:", resp.StatusCode)
 	fmt.Println("响应体:", string(body))
-
 }
 
 func getCaptcha() string {
