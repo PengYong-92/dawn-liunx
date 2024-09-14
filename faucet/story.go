@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	proxyUrl = "http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125"
+	//proxyUrl = "http://2892ED58F5DF1579-residential-country_US-r_0m-s_PDfBsmnJTM:Qbb645Mf@gw-us.nstproxy.com:24125"
+	proxyUrl = "http://40AE8B219F7C129B-residential-country_DE-r_0m-s_eJdvOqV9lY:1qazXSW@@gate.nstproxy.io:24125"
 )
 
 func main() {
