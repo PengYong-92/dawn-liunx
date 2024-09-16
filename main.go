@@ -184,6 +184,7 @@ func ping(email string) {
 		return
 	}
 	lastLogin := time.Now()
+
 	// 解析 JSON 响应
 	//var result map[string]interface{}
 	//err = json.Unmarshal(res.Body(), &result)
@@ -223,7 +224,7 @@ func ping(email string) {
 	for {
 		if time.Now().Sub(lastLogin) > 2*time.Hour {
 			loginRequest.Logindata.Datetime = time.Now().Format("2006-01-02 15:04:05")
-			_, err := client.R().
+			_, err := client.SetProxy(PROXY__URL).R().
 				SetBody(loginRequest).
 				SetResult(&loginResponse).
 				Post(constant.LoginURL)
@@ -234,7 +235,7 @@ func ping(email string) {
 				return
 			}
 		}
-		res, err := client.R().
+		res, err := client.SetProxy(PROXY__URL).R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			SetBody(keepAliveRequest).
 			Post(constant.KeepAliveURL)
@@ -245,7 +246,7 @@ func ping(email string) {
 		}
 		logger.Info("Keep alive success", zap.String("acc", email), zap.String("res", res.String()))
 
-		res, err = client.R().
+		res, err = client.SetProxy(PROXY__URL).R().
 			SetHeader("authorization", fmt.Sprintf("Bearer %v", loginResponse.Data.Token)).
 			Get(constant.GetPointURL)
 		if err != nil {
@@ -390,7 +391,7 @@ func captcha(client *resty.Client) (string, string) {
 		return "", ""
 	}
 	puzzleId := result["puzzle_id"].(string)
-	response, err := client.R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle-image?puzzle_id=" + puzzleId)
+	response, err := client.SetProxy(PROXY__URL).R().Get("https://www.aeropres.in/chromeapi/dawn/v1/puzzle/get-puzzle-image?puzzle_id=" + puzzleId)
 	if err != nil {
 		logger.Error("请求错误，暂停5分钟", zap.Error(err))
 		time.Sleep(5 * time.Minute)
