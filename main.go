@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	api2captcha "github.com/2captcha/2captcha-go"
 	"github.com/go-resty/resty/v2"
 	"github.com/mattn/go-colorable"
 	"go.uber.org/zap"
@@ -170,7 +171,7 @@ func ping(email string) {
 		}(struct {
 			V        string
 			Datetime string
-		}{V: "1.0.7", Datetime: time.Now().Format("2006-01-02 15:04:05")}),
+		}{V: "1.0.8", Datetime: time.Now().Format("2006-01-02 15:04:05")}),
 	}
 	var loginResponse request.LoginResponse
 	res, err := client.R().
@@ -203,7 +204,7 @@ func ping(email string) {
 		"username":     email,
 		"extensionid":  "fpdkjdnhkakefebpekbdhillbhonfjjp",
 		"numberoftabs": 0,
-		"_v":           "1.0.7",
+		"_v":           "1.0.8",
 	}
 	// 定义一个用于解析的结构体
 	/*	type Response struct {
@@ -503,4 +504,18 @@ func updateProfile(token string, client *resty.Client) {
 		return
 	}
 	logger.Info("请求telegra：" + telegramid.String())
+}
+
+/**在线识别验证码*/
+func getLoginCode(base64 string) string {
+	client := api2captcha.NewClient("4f491b55857cbe0a0f10a75c50524f65")
+	captcha := api2captcha.Normal{
+		Base64: base64,
+	}
+	code, _, err := client.Solve(captcha.ToRequest())
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("识别结果：" + code)
+	return code
 }

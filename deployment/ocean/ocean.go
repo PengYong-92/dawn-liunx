@@ -71,27 +71,27 @@ func processServer(ip, password, username, port, privateKey, allowedAdmins strin
 		return
 	}
 	defer client.Close()
-
-	// 步骤 1: 检查并创建 ocean 目录
-	err = checkOrCreateDirectory(client, "~/ocean")
-	if err != nil {
-		saveFailedIP(ip)
-		return
-	}
-
-	// 步骤 2: 上传 docker-compose.yml 文件
-	err = uploadFile(client, "D:\\money\\Dawn-main\\deployment\\ocean\\docker-compose.yml", "/root/ocean/docker-compose.yml")
-	if err != nil {
-		fmt.Println("文件上传失败:", err)
-		saveFailedIP(ip)
-		return
-	}
-
-	// 步骤 3: 获取服务器外网 IP
-	externalIP := getExternalIP(client)
-
-	// 步骤 4, 5: 替换 docker-compose.yml 文件中的占位符
-	replaceFileContent(client, externalIP, privateKey, allowedAdmins)
+	//
+	//// 步骤 1: 检查并创建 ocean 目录
+	//err = checkOrCreateDirectory(client, "~/ocean")
+	//if err != nil {
+	//	saveFailedIP(ip)
+	//	return
+	//}
+	//
+	//// 步骤 2: 上传 docker-compose.yml 文件
+	//err = uploadFile(client, "D:\\money\\Dawn-main\\deployment\\ocean\\docker-compose.yml", "/root/ocean/docker-compose.yml")
+	//if err != nil {
+	//	fmt.Println("文件上传失败:", err)
+	//	saveFailedIP(ip)
+	//	return
+	//}
+	//
+	//// 步骤 3: 获取服务器外网 IP
+	//externalIP := getExternalIP(client)
+	//
+	//// 步骤 4, 5: 替换 docker-compose.yml 文件中的占位符
+	//replaceFileContent(client, externalIP, privateKey, allowedAdmins)
 
 	// 步骤 6: 异步执行 docker compose up -d
 	err = executeDockerCompose(client)
