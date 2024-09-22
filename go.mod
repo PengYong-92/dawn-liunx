@@ -7,13 +7,13 @@ toolchain go1.23.0
 require (
 	fyne.io/fyne/v2 v2.5.1
 	github.com/2captcha/2captcha-go v1.1.9
-	github.com/capsolver/capsolver-go v0.0.0-20240809112329-cc806223bb59
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-resty/resty/v2 v2.14.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-colorable v0.1.13
 	github.com/pkg/sftp v1.13.6
 	github.com/playwright-community/playwright-go v0.4501.1
+	github.com/sirupsen/logrus v1.8.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.26.0
 )
