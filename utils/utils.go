@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"encoding/json"
 	"log"
 	"os"
@@ -27,4 +28,22 @@ func ToJSON(v interface{}) string {
 		return ""
 	}
 	return string(b)
+}
+
+// 将剩余的地址重新写回文件
+func WriteAddressesToFile(fileAddress string, addresses []string) error {
+	file, err := os.OpenFile(fileAddress, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	for _, address := range addresses {
+		_, err := writer.WriteString(address + "\n")
+		if err != nil {
+			return err
+		}
+	}
+	return writer.Flush()
 }
