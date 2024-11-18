@@ -139,7 +139,6 @@ func main() {
 			remainingAddresses = append(remainingAddresses, address)
 		}
 	}
-
 	// 处理完毕，重新写入文件剩余地址
 	err = utils.WriteAddressesToFile(fileAddress, remainingAddresses)
 	if err != nil {
