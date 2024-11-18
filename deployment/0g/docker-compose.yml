@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  zgs_node:
+    image: harbor.eyzhixing.com.cn/public/0g-storage-node:v0.5.3
+    environment:
+      - CONFIG_FILE=/app/config-testnet.toml
+      - MINER_KEY=df15091b20a8ceccacb89af181f68291154d2e7477984fc6c12fe20c17d76b71
+      - RPC_ENDPOINT=https://evmrpc-testnet.0g.ai/
+    volumes:
+      - ./config-testnet.toml:/app/config-testnet.toml
+      - ./log_config:/app/log_config
+      - ./data/db:/app/db
+      - ./data/network:/app/network
+    ports:
+      - "5678:5678"
+      - "1234:1234"
+    logging:
+      driver: json-file
+      options:
+        max-size: "1024m"
+        max-file: "3"

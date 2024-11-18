@@ -19,7 +19,7 @@ func main() {
 	port := "22"
 
 	// 打开文件
-	file, err := os.Open("D:\\money\\Dawn-main\\deployment\\ocean\\zhanghao.txt")
+	file, err := os.Open("D:\\GoProject\\src\\dawn-liunx\\deployment\\ocean\\zhanghao.txt")
 	if err != nil {
 		fmt.Println("读取文件失败:", err)
 		return
